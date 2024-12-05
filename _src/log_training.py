@@ -4,10 +4,10 @@ import json
 from jax.tree_util import tree_flatten
 import matplotlib.pyplot as plt
 
-plt.rcParams['figure.figsize'] = [15, 15]
+plt.rcParams['figure.figsize'] = [20, 20]
 
 
-def log_training(args_dict, state, loss_tracker, accuracy_tracker, track_metrics=True, track_grad_and_params_norms=False):
+def log_training(args_dict, state, loss_tracker, accuracy_tracker, track_metrics=True):
     # Create a unique folder for each training session
     training_id = sum(f != ".gitignore" for f in os.listdir("training_logs")) if os.path.exists("training_logs") else 0
     folder_name = f"training_logs/{args_dict["model"]}_session_{training_id}"
@@ -77,38 +77,5 @@ def log_training(args_dict, state, loss_tracker, accuracy_tracker, track_metrics
         accuracy_file = os.path.join(folder_name, "accuracy_plot.jpeg")
         plt.savefig(accuracy_file, format="jpeg")
         plt.close()
-    
-    if track_grad_and_params_norms:
-        
-        # Save the gradient norms as a pickle file
-        grad_norm_file = os.path.join(folder_name, "grad_norm_history.pkl")
-        with open(grad_norm_file, "wb") as f:
-            pickle.dump(state.grad_norm_history, f)
-        
-        plt.figure()
-        plt.plot(state.grad_norm_history)
-        plt.yscale('log')
-        plt.xlabel("Steps")
-        plt.ylabel("(log) Norms")
-        plt.title("Gradient norms over steps")
-        g_plot_file = os.path.join(folder_name, "grad_norms.jpeg")
-        plt.savefig(g_plot_file, format="jpeg")
-        plt.close()
-        
-        # Save the gradient norms as a pickle file
-        params_norm_file = os.path.join(folder_name, "params_norm_history.pkl")
-        with open(params_norm_file, "wb") as f:
-            pickle.dump(state.params_norm_history, f)
-        
-        plt.figure()
-        plt.plot(state.params_norm_history)
-        plt.yscale('log')
-        plt.xlabel("Steps")
-        plt.ylabel("(log) Norms")
-        plt.title("Params norms over steps")
-        p_plot_file = os.path.join(folder_name, "params_norms.jpeg")
-        plt.savefig(p_plot_file, format="jpeg")
-        plt.close()
-
 
     print(f"Training log saved in: {folder_name}")

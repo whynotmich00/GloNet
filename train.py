@@ -2,7 +2,8 @@ import argparse
 from jax import devices
 
 from _src.Processors import MLP, CNN
-from _src.utils_functions import get_mnsit_dataloaders, train_model
+from _src.get_data import get_mnsit_dataloaders
+from _src.utils_functions import train_model
 
 from _src.log_training import log_training
 
@@ -12,10 +13,6 @@ def parse_arguments():
     Parse command-line arguments for model configuration.
     """
     parser = argparse.ArgumentParser(description="Configurable Machine Learning Model")
-    
-    # Define task type
-    parser.add_argument('--task', default="classification",
-                        help='Regression or classification task')
     
     # Model architecture
     parser.add_argument('--model', default="MLP",
@@ -33,15 +30,13 @@ def parse_arguments():
     
     # Model architecture parameters
     parser.add_argument('--features-shapes', type=tuple, default=(32, 64, 256, 10), 
-                        help='Convolution features size for each layer')
+                        help='Features size for each layer')
     parser.add_argument('--kernel-size', type=int, default=4, 
                         help='Convolution kernel size')
     
     parser.add_argument("--track-metrics", type=bool, default=True,
                         help="Log losses and accuracy during training and validation")
-    parser.add_argument("--track-norms", type=bool, default=False,
-                        help="Log gradients norms every 5 steps during training")
-    
+        
     return parser.parse_args()
 
 
@@ -51,14 +46,12 @@ if __name__ == "__main__":
     # Parse command-line arguments
     args = parse_arguments()
     
-    assert args.task in ["classification", "regression"], "task must be one between classification or regression"
     assert args.model in ["MLP", "CNN"], "model must be 'MLP' or 'CNN'"
     assert len(args.features_shapes) == 4, "model has 4 layers"
     assert args.features_shapes[-1] == 10, "Last output shape must be 10 for MNIST dataset"
     
     # Print configuration for verification
     print("Model Configuration:")
-    print(f"Task: {args.task}")
     print(f"Network: {args.model}")
     print(f"Epochs: {args.epochs}")
     if args.model == "CNN": print(f"Kernel size: {args.kernel_size}")
@@ -67,8 +60,6 @@ if __name__ == "__main__":
     print(f"Momentum: {args.momentum}")
     print(f"Out Channels: {args.features_shapes}")
     print(f"Track metrics: {args.track_metrics}")
-    print(f"Track gradient norms: {args.track_norms}")
-    
     
     # List all available devices
     devices = devices()
@@ -89,7 +80,6 @@ if __name__ == "__main__":
     
     # Train the model
     state, loss_tracker, accuracy_tracker = train_model(
-                                                        task=args.task,
                                                         model=network,
                                                         train_ds=train_ds,
                                                         test_ds=test_ds,
@@ -97,17 +87,15 @@ if __name__ == "__main__":
                                                         momentum=args.momentum,
                                                         num_epochs=args.epochs,
                                                         track_metrics=args.track_metrics,
-                                                        track_grad_and_params_norms=args.track_norms
                                                         )
     
     args_dict = vars(args)
     if args.model == "MLP": del args_dict["kernel_size"]
-    quit()
+
     log_training(
                 args_dict=args_dict,
                 state=state,
                 loss_tracker=loss_tracker,
                 accuracy_tracker=accuracy_tracker,
                 track_metrics=args.track_metrics,
-                track_grad_and_params_norms=args.track_norms
                 )
