@@ -56,7 +56,7 @@ def train_step(state, images, labels):
     (loss, accuracy), grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
     
-    return state, loss, accuracy, grads
+    return state, loss, accuracy
 
 # Define the evaluation step (no gradient computation)
 @jax.jit
@@ -89,7 +89,7 @@ def train_model(model, train_ds, test_ds, lr, momentum=None, num_epochs=10, trac
                 one_image_shape = images[0][None, ...].shape # MNIST images are 28x28x1 
                 state = create_train_state(rng, model, one_image_shape, lr=lr, momentum=momentum)
             
-            state, loss, accuracy,grads = train_step(state, images, labels)
+            state, loss, accuracy = train_step(state, images, labels)
             
             # logs metrics every 10 steps
             if step % 10 == 0 and track_metrics:
