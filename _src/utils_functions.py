@@ -31,15 +31,22 @@ def compute_top_k_accuracy(logits, labels, k=1):
     return jnp.mean(correct)
 
 # Define a function for creating an optimizer
-def create_optimizer(lr, momentum):
-    return optax.sgd(learning_rate=lr, momentum=momentum)
+def create_optimizer(config_optimizer):
+    if config_optimizer["optimizer"] == "SGD": 
+        return optax.sgd(learning_rate=config_optimizer["lr"], momentum=config_optimizer["momentum"])
+    
+    elif config_optimizer["optimizer"] == "ADAM": 
+        return optax.adam(learning_rate=config_optimizer["lr"])
+    
+    else:
+        raise ValueError(f"Optimizer {config_optimizer["optimizer"]} not implemented")
 
 # Define a function to initialize the model and optimizer
-def create_train_state(rng, model, input_shape, lr, momentum):
+def create_train_state(rng, model, input_shape, config_optimizer):
     params = model.init(rng, jnp.ones(input_shape))  # Initialize parameters
     get_number_of_parameters(params)
     
-    tx = create_optimizer(lr, momentum)  # Initialize the optimizer
+    tx = create_optimizer(config_optimizer)  # Initialize the optimizer
     return TrainState.create(apply_fn=model.apply, params=params, tx=tx)
 
 # Define the training step (forward pass + backward pass)
@@ -68,7 +75,7 @@ def eval_step(state, images, labels):
 
 
 # Define the main training loop
-def train_model(model, train_ds, test_ds, lr, momentum=None, num_epochs=10, track_metrics=True):
+def train_model(model, train_ds, test_ds, config_optimizer, num_epochs=10, track_metrics=True):
     # Rng
     rng = random.PRNGKey(0)
 
@@ -87,7 +94,7 @@ def train_model(model, train_ds, test_ds, lr, momentum=None, num_epochs=10, trac
             if (step == 0) and (epoch == 0):
                 # Initialize the model and optimmizer
                 one_image_shape = images[0][None, ...].shape # MNIST images are 28x28x1 
-                state = create_train_state(rng, model, one_image_shape, lr=lr, momentum=momentum)
+                state = create_train_state(rng, model, one_image_shape, config_optimizer)
             
             state, loss, accuracy = train_step(state, images, labels)
             

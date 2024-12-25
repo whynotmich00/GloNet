@@ -1,15 +1,7 @@
 from tensorflow.keras.datasets import mnist
 from tensorflow import newaxis
 from tensorflow.data import Dataset, AUTOTUNE
-
-from functools import reduce
-
-def get_number_of_parameters(params):
-    total = []
-    for layer in params["params"].keys():
-        for par in params["params"][layer].items():
-            total.append((layer, reduce(lambda x, y: x * y, par[1].shape)))
-    print(total)
+import grain.python as grain
 
 def get_mnsit_dataloaders(batch_size, model_type="CNN"):
     # Load the MNIST dataset
@@ -31,3 +23,7 @@ def get_mnsit_dataloaders(batch_size, model_type="CNN"):
     test_dataset = Dataset.from_tensor_slices((x_test, y_test)).shuffle(buffer_size=1024).batch(batch_size=batch_size).prefetch(AUTOTUNE)
     
     return train_dataset, test_dataset
+
+def get_mnsit_grain_dataloaders(batch_size):
+    # TODO: implement grain dataloader grain.DataLoader()
+    pass

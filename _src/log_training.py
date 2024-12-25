@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize'] = [20, 20]
 
 
-def log_training(args_dict, state, loss_tracker, accuracy_tracker, track_metrics=True):
+def log_training(config, state, loss_tracker: None, accuracy_tracker: None):
     # Create a unique folder for each training session
     training_id = sum(f != ".gitignore" for f in os.listdir("training_logs")) if os.path.exists("training_logs") else 0
     folder_name = f"training_logs/{args_dict["model"]}_session_{training_id}"
@@ -23,7 +23,7 @@ def log_training(args_dict, state, loss_tracker, accuracy_tracker, track_metrics
     with open(args_file, "w") as f:
         json.dump(args_dict, f)
 
-    if track_metrics:
+    if loss_tracker is not None:
         # Plot and save the loss values
         loss_training, loss_validation = loss_tracker.metrics["Training"], loss_tracker.metrics["Validation"]
         
@@ -51,6 +51,7 @@ def log_training(args_dict, state, loss_tracker, accuracy_tracker, track_metrics
         plt.savefig(loss_file, format="jpeg")
         plt.close()
 
+    if accuracy_tracker is not None:
         # Plot and save the accuracy values
         accuracy_training, accuracy_validation = accuracy_tracker.metrics["Training"], accuracy_tracker.metrics["Validation"]
         
