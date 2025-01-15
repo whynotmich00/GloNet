@@ -73,7 +73,7 @@ def eval_step(state, images, labels):
 
 
 # Define the main training loop
-def train_model(model, train_ds, test_ds, flags):
+def train_model(model, train_ds, test_ds, config_optimizer, flags):
     # Rng
     rng = random.PRNGKey(0)
 
@@ -87,7 +87,7 @@ def train_model(model, train_ds, test_ds, flags):
         
         # Training
         for step, (images, labels) in enumerate(train_ds):
-            images, labels = jnp.array(images, dtype=jnp.float32), jnp.array(labels, dtype=jnp.float32)
+            images, labels = jnp.array(images, dtype=jnp.bfloat16), jnp.array(labels, dtype=jnp.bfloat16)
             
             if (step == 0) and (epoch == 0):
                 # Initialize the model and optimmizer
@@ -104,7 +104,7 @@ def train_model(model, train_ds, test_ds, flags):
         
         # Validation
         for step, (images, labels) in enumerate(test_ds):
-            images, labels = jnp.array(images, dtype=jnp.float32), jnp.array(labels, dtype=jnp.float32)
+            images, labels = jnp.array(images, dtype=jnp.bfloat16), jnp.array(labels, dtype=jnp.bfloat16)
             
             loss, accuracy = eval_step(state, images, labels)
             
