@@ -10,10 +10,6 @@ def get_mnsit_dataloaders(batch_size):
     # Normalize the images to [0, 1]
     x_train = x_train.astype("float32") / 255.0
     x_test = x_test.astype("float32") / 255.0
-    
-    # Add a channel dimension for compatibility with convolutional layers
-    x_train = x_train[..., newaxis]
-    x_test = x_test[..., newaxis]
 
     x_train = x_train.reshape(x_train.shape[0], -1)
     x_test = x_test.reshape(x_test.shape[0], -1)

@@ -1,6 +1,7 @@
 from jax import devices
+from flax import nnx
 
-from _src.Processors import CNN
+from _src.Processors import CNN, CNN_nnx
 from _src.get_data import get_mnsit_dataloaders
 from _src.utils_functions import train_model
 from _src.config import Config
@@ -18,6 +19,7 @@ flags.DEFINE_float("learning_rate", 0.001, "Learning rate for optimization")
 flags.DEFINE_float("momentum", 0.0, "Momentum regularization")
 flags.DEFINE_list("features", [32, 64, 256, 10], "list")
 flags.DEFINE_integer("kernel_size", 4, "Convolution kernel size")
+flags.DEFINE_string("framework", "plain", "flax linen or nnx?")
 flags.DEFINE_boolean("track_metrics", True, "Log losses and accuracy during training and validation")
 
 
@@ -50,9 +52,9 @@ def main(argv):
     # print(f"Out Channels: {config_model["features_shapes"]}")
     # print(f"Track metrics: {config["track_metrics"]}")
     
-    
+    rngs = nnx.Rngs(0)
     # Initialize the model
-    network = CNN(kernel_size=(FLAGS.kernel_size,)*2, features_shapes=FLAGS.features)
+    network = CNN(kernel_size=(FLAGS.kernel_size,)*2, features=FLAGS.features)#if FLAGS.framework == "plain" else CNN_nnx(kernel_size=(FLAGS.kernel_size,)*2, features=FLAGS.features, rngs=rngs)
     
     
     # MNIST dataloaders
