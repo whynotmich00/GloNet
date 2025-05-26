@@ -69,31 +69,35 @@ def plot_training_metrics(metrics: Dict, folder_name: str):
             # Plot the last step of the history L1 norms of the parameters collected during training
             # This is done to show the usage of the network parameters by the model
             ax = axes[i // 2, i % 2]
-            l1_norm = metric_value[-1]["params"] # this is a dictionary
+            l1_norm = metric_value[-1]  # this is a dictionary
             l1_norm_flat, _ = jtu.tree_flatten_with_path(l1_norm)
             layer_keys = [jtu.keystr(name).replace("']['", " ").replace("['", "").replace("']", "") for name, _ in l1_norm_flat]
             l1_values = [value for _, value in l1_norm_flat]
             
             ax.plot(l1_values, marker="o", label=metric_key, linestyle="None", alpha=0.8)
             ax.set_xticks(range(len(layer_keys)))
-            ax.set_xticklabels(layer_keys, rotation=45, ha='right')
-            ax.set_ylabel('L1 Norm')
-            ax.set_title('L1 Param Norm by Layer')
+            ax.set_xticklabels(layer_keys, rotation=45, ha="right")
+            ax.set_ylabel("L1 Norm")
+            ax.set_title("L1 Param Norm by Layer")
             ax.grid(True)
             ax.legend()
         
-        elif metric_key == "l1_output_norm_history":
+        elif metric_key == "l1_intermediate_output_norm_history":
             # Plot the last step of the history L1 norms of the outputs collected during training
             # This is done to show the usage of the network outputs by the model
             ax = axes[i // 2, i % 2]
-            l1_norm = metric_value[-1]    # the mean over the batch output of the last step of the history
-            print(l1_norm.shape)
-            layer_str = [f"layer_{i}" for i in range(l1_norm.shape[0])]
-            ax.plot(l1_norm.mean(axis=-1), marker="o", label=metric_key, linestyle="None", alpha=0.8)
-            ax.set_xticks(range(len(layer_str)))
-            ax.set_xticklabels(layer_str, rotation=45, ha='right')
-            ax.set_ylabel('L1 Norm')
-            ax.set_title('L1 Output Norm by Layer')
+            # the mean over the batch output of the last step of the history
+            l1_norm = metric_value[-1]
+            l1_norm_flat, _ = jtu.tree_flatten_with_path(l1_norm)
+            layer_keys = [jtu.keystr(leaf_key).replace("['__call__'][0]", "") for leaf_key, _ in l1_norm_flat]
+            layer_keys = [x.replace("['", "").replace("']", "") for x in layer_keys]
+            layer_values = [val for _, val in l1_norm_flat]
+            ax.plot(layer_values, marker="o", label=metric_key, linestyle="None", alpha=0.8)
+            ax.set_xticks(range(len(layer_values)))
+            ax.set_xticklabels(layer_keys, rotation=45, ha="right")
+            ax.set_ylabel("L1 Norm")
+            ax.set_yscale("log")
+            ax.set_title("L1 Output Norm by Layer")
             ax.grid(True)
             ax.legend()
             

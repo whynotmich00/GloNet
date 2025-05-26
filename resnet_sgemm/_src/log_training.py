@@ -2,17 +2,22 @@ import os
 import pickle
 import json
 import jax.tree_util as jtu
+import numpy as np
 from typing import Dict
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
+from _src.utils import compute_l1_validation_mean_inter_outputs, compute_l1_norms_leaves
+
 
 # plt.rcParams['figure.figsize'] = [20, 20]
 
 
-def save_training_files(flags, state, folder_name: str):
+def save_training_files(flags, state, metrics, folder_name: str):
     # Save the training state as a pickle file
     state_file = os.path.join(folder_name, "train_state_params.pkl")
     with open(state_file, "wb") as f:
@@ -22,6 +27,12 @@ def save_training_files(flags, state, folder_name: str):
     args_file = os.path.join(folder_name, "config.json")
     with open(args_file, "w") as f:
         json.dump(flags.flag_values_dict(), f)
+    
+    # Save the training metrics as a pickle file
+    metrics_file = os.path.join(folder_name, "training_metrics.pkl")
+    with open(metrics_file, "wb") as f:
+        metrics_memory = jtu.tree_map(np.array, metrics)
+        pickle.dump(metrics_memory, f)
 
 def create_pdf_report(flags, folder_name: str):
     # Create PDF report
@@ -63,45 +74,65 @@ def create_pdf_report(flags, folder_name: str):
     doc.build(elements)
 
 def plot_training_metrics(metrics: Dict, folder_name: str):
-    fig, axes = plt.subplots(3, 2, figsize=(15, 10))
+    # fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    # Create subplots
+    fig, _ = plt.subplots(figsize=(12, 8))
+    # Hide the figure-level axes
+    fig.axes[0].set_visible(False)
+    # Create GridSpec
+    gs = gridspec.GridSpec(3, 2, figure=fig)
+    
+    metric_axes = [plt.subplot(gs[0, 0]), plt.subplot(gs[0, 1])]
+    param_norm_axes = plt.subplot(gs[1, :])
+    interm_outputs_norm_axes = plt.subplot(gs[2, :])
+    
     for i, (metric_key, metric_value) in enumerate(metrics.items()):
         if metric_key == "l1_leaf_norm_history":
+            print("Plotting L1 norms of the parameters collected during training")
             # Plot the last step of the history L1 norms of the parameters collected during training
             # This is done to show the usage of the network parameters by the model
-            ax = axes[i // 2, i % 2]
-            l1_norm = metric_value[-1]["params"] # this is a dictionary
-            l1_norm_flat, _ = jtu.tree_flatten_with_path(l1_norm)
-            layer_keys = [jtu.keystr(name).replace("']['", " ").replace("['", "").replace("']", "") for name, _ in l1_norm_flat]
-            l1_values = [value for _, value in l1_norm_flat]
+            ax = param_norm_axes
+            l1_norm_leaves = metric_value[0][-1]                  # this is a dictionary
+            ordered_keys = metric_value[1]["ordered_keys"]        # this is a list
+            ordered_values_by_layer = compute_l1_norms_leaves(l1_norm_leaves, ordered_keys=ordered_keys)
             
-            ax.plot(l1_values, marker="o", label=metric_key, linestyle="None", alpha=0.8)
-            ax.set_xticks(range(len(layer_keys)))
-            ax.set_xticklabels(layer_keys, rotation=45, ha='right')
-            ax.set_ylabel('L1 Norm')
-            ax.set_title('L1 Param Norm by Layer')
+            # l1_norm_flat_leaves = jtu.tree_leaves(l1_norm_leaves, is_leaf=lambda x: "bias" in x)
+            # l1_norm_by_layer = [l["bias"] + l["kernel"] if "kernel" in l else None for l in l1_norm_flat_leaves]
+            # l1_norm_by_layer = list(filter(lambda x: x is not None, l1_norm_by_layer))
+            # l1_norm_by_bn_layer = [l["bias"] + l["scale"] if "scale" in l else None for l in l1_norm_flat_leaves]
+            # l1_norm_by_bn_layer = list(filter(lambda x: x is not None, l1_norm_by_bn_layer))
+            
+            ax.plot(ordered_values_by_layer, marker="o", label=metric_key, linestyle="None", alpha=0.8)
+            ax.set_ylabel("L1 Norm")
+            ax.set_title("L1 Param Norm by Layer")
             ax.grid(True)
             ax.legend()
         
-        elif metric_key == "l1_output_norm_history":
+        elif metric_key == "l1_intermediate_output_validation":
             # Plot the last step of the history L1 norms of the outputs collected during training
             # This is done to show the usage of the network outputs by the model
-            ax = axes[i // 2, i % 2]
-            l1_norm = metric_value[-1]    # the mean over the batch output of the last step of the history
-            print(l1_norm.shape)
-            layer_str = [f"layer_{i}" for i in range(l1_norm.shape[0])]
-            ax.plot(l1_norm.mean(axis=-1), marker="o", label=metric_key, linestyle="None", alpha=0.8)
-            ax.set_xticks(range(len(layer_str)))
-            ax.set_xticklabels(layer_str, rotation=45, ha='right')
-            ax.set_ylabel('L1 Norm')
-            ax.set_title('L1 Output Norm by Layer')
+            ax = interm_outputs_norm_axes
+            # the mean of l1 norms of the intermediate outputs of the last epoch on validation set
+            l1_norms = compute_l1_validation_mean_inter_outputs(
+                intermediates_outputs=metric_value[0],
+                test_ds_length=metric_value[1]["len_testset"],
+                batch_size=metric_value[1]["batch_size"],
+            )
+            assert len(l1_norms.shape) == 1, f"L1 norms should be a 1D array, got {l1_norms.shape} instead."
+            ax.plot(l1_norms, marker="o", label=metric_key, linestyle="None", alpha=0.8)
+            ax.set_xlabel("Layers")
+            ax.set_ylabel("L1 Norm")
+            ax.set_title("Mean of L1 Output Norm by Layer for the Validation Set (last epoch)")
             ax.grid(True)
             ax.legend()
             
         else:
-            ax = axes[i // 2, i % 2]
+            ax = metric_axes[i % 2]
             ax.plot(metric_value, label=metric_key, marker="o", alpha=0.8)
             ax.set_ylabel(metric_key)
             ax.set_title(metric_key.replace("_", " ").title())
+            ax.set_xlabel("Epochs" if "val" in metric_key else "Steps")
+            ax.set_yscale("log")
             ax.grid()
             ax.legend()
         
@@ -111,14 +142,14 @@ def plot_training_metrics(metrics: Dict, folder_name: str):
 
 def log_training(flags, state, metrics: Dict):
     # Create a unique folder for each training session
-    parent_folder_name = f"training_logs/{flags.model}"
+    parent_folder_name = f"{flags.result_dir}/{flags.model}"
     os.makedirs(parent_folder_name, exist_ok=True)
     # session folder
     training_id = len(os.listdir(parent_folder_name)) + 1
     folder_name = os.path.join(parent_folder_name, f"session_{training_id}")
     os.makedirs(folder_name, exist_ok=True)
 
-    save_training_files(flags, state, folder_name)
+    save_training_files(flags, state, metrics, folder_name)
     plot_training_metrics(metrics, folder_name)
     create_pdf_report(flags, folder_name)
     

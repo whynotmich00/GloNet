@@ -15,30 +15,25 @@ def get_mnsit_dataloaders(batch_size: int):
     x_train = x_train.astype("float32") / 255.0
     x_test = x_test.astype("float32") / 255.0
 
-    x_train = x_train.reshape(x_train.shape[0], -1)
-    x_test = x_test.reshape(x_test.shape[0], -1)
-    
     train_dataset = Dataset.from_tensor_slices((x_train, y_train)).shuffle(buffer_size=1024).batch(batch_size=batch_size).prefetch(AUTOTUNE)
     test_dataset = Dataset.from_tensor_slices((x_test, y_test)).shuffle(buffer_size=1024).batch(batch_size=batch_size).prefetch(AUTOTUNE)
     
     return train_dataset, test_dataset
 
 
-def create_imagenette_dataset(
+def get_imagenette_dataloaders(
     data_dir, 
     batch_size: int = 32, 
-    image_size: int = 224, 
-    validation_split: float = 0.2, 
-    flatten: bool = True,
+    image_size: int = 224
     ):
     """
     Create training and validation datasets for Imagenette using TensorFlow.
+    Works with the standard Imagenette2 directory structure with separate train and val folders.
     
     Args:
         data_dir (str): Path to Imagenette dataset directory
         batch_size (int): Batch size for training and validation
         image_size (int): Target image size for model input
-        validation_split (float): Proportion of data to use for validation
         
     Returns:
         tuple: (train_dataset, val_dataset, class_names)
@@ -63,9 +58,6 @@ def create_imagenette_dataset(
         image = tf.cast(image, tf.float32) / 255.0
         image = (image - mean) / std
         
-        if flatten:
-            # FLATTEN IMAGE: we are working with dense layer in this repo
-            image = tf.reshape(image, [-1])
         return image, label
     
     # Define preprocessing function for validation data
@@ -74,68 +66,69 @@ def create_imagenette_dataset(
         image = tf.image.central_crop(image, image_size / (image_size + 32))
         image = tf.cast(image, tf.float32) / 255.0
         image = (image - mean) / std
-        if flatten:
-            # FLATTEN IMAGE: we are working with dense layer in this repo
-            image = tf.reshape(image, [-1])
         return image, label
     
-    # Get the class folders (Imagenette uses the original ImageNet folder names)
-    train_dir = os.path.join(data_dir, 'train')
-    class_dirs = sorted([d for d in os.listdir(train_dir) 
-                        if os.path.isdir(os.path.join(train_dir, d))])
-    
-    # Map class folders to indices
-    class_to_idx = {class_name: i for i, class_name in enumerate(class_dirs)}
-    
-    # Build the full dataset
-    all_images = []
-    all_labels = []
-    
-    for class_name in class_dirs:
-        class_path = os.path.join(train_dir, class_name)
-        class_idx = class_to_idx[class_name]
+    # Function to load and process images from a directory
+    def process_directory(directory_path, is_training=True):
+        print(f"dataset loaded from {os.path.abspath(directory_path)}")
+        # Get the class folders
+        class_dirs = sorted([d for d in os.listdir(directory_path) 
+                            if os.path.isdir(os.path.join(directory_path, d))])
         
-        for img_name in os.listdir(class_path):
-            if img_name.lower().endswith(('.jpeg', '.jpg', '.png')):
-                img_path = os.path.join(class_path, img_name)
-                all_images.append(img_path)
-                all_labels.append(class_idx)
+        # Map class folders to indices
+        class_to_idx = {class_name: i for i, class_name in enumerate(class_dirs)}
+        
+        # Build the dataset
+        all_images = []
+        all_labels = []
+        
+        for class_name in class_dirs:
+            class_path = os.path.join(directory_path, class_name)
+            class_idx = class_to_idx[class_name]
+            
+            for img_name in os.listdir(class_path):
+                if img_name.lower().endswith(('.jpeg', '.jpg', '.png')):
+                    img_path = os.path.join(class_path, img_name)
+                    all_images.append(img_path)
+                    all_labels.append(class_idx)
+        
+        # Convert to TensorFlow tensors
+        all_images = tf.constant(all_images)
+        all_labels = tf.constant(all_labels)
+        
+        # Create the dataset
+        dataset = tf.data.Dataset.from_tensor_slices((all_images, all_labels))
+        
+        # Function to load the image files
+        def load_image(file_path, label):
+            img = tf.io.read_file(file_path)
+            img = tf.image.decode_jpeg(img, channels=3)
+            return img, label
+        
+        # Apply the loading function
+        dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
+        
+        # Apply preprocessing based on whether it's training or validation
+        preprocess_fn = preprocess_train if is_training else preprocess_val
+        dataset = dataset.map(preprocess_fn, num_parallel_calls=tf.data.AUTOTUNE)
+        
+        # Shuffle if training
+        if is_training:
+            dataset = dataset.shuffle(buffer_size=len(all_images))
+        
+        # Batch and prefetch
+        dataset = dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        
+        return dataset, class_dirs
     
-    # Convert to TensorFlow tensors
-    all_images = tf.constant(all_images)
-    all_labels = tf.constant(all_labels)
+    # Process training and validation directories
+    train_dir = os.path.join(data_dir, 'train')
+    val_dir = os.path.join(data_dir, 'val')
     
-    # Create the dataset
-    dataset = tf.data.Dataset.from_tensor_slices((all_images, all_labels))
+    train_ds, class_dirs = process_directory(train_dir, is_training=True)
+    val_ds, _ = process_directory(val_dir, is_training=False)
     
-    # Function to load the image files
-    def load_image(file_path, label):
-        img = tf.io.read_file(file_path)
-        img = tf.image.decode_jpeg(img, channels=3)
-        return img, label
-    
-    # Apply the loading function
-    dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
-    
-    # Shuffle the dataset
-    dataset = dataset.shuffle(buffer_size=len(all_images))
-    
-    # Split into training and validation
-    val_size = int(len(all_images) * validation_split)
-    train_size = len(all_images) - val_size
-    
-    train_ds = dataset.take(train_size)
-    val_ds = dataset.skip(train_size)
-    
-    # Apply preprocessing
-    train_ds = train_ds.map(preprocess_train, num_parallel_calls=tf.data.AUTOTUNE)
-    val_ds = val_ds.map(preprocess_val, num_parallel_calls=tf.data.AUTOTUNE)
-    
-    # Batch and prefetch
-    train_ds = train_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    val_ds = val_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    
-    # Map folder names to human-readable class names (optional)
+    # Map folder names to human-readable class names
     imagenette_classes = {
         'n01440764': 'tench',
         'n02102040': 'springer_spaniel',
@@ -152,6 +145,7 @@ def create_imagenette_dataset(
     class_names = [imagenette_classes.get(class_name, class_name) for class_name in class_dirs]
     
     return train_ds, val_ds, class_names
+
 
 # Example usage:
 # train_ds, val_ds, class_names = create_imagenette_dataset('/path/to/imagenette2')

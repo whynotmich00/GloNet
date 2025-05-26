@@ -9,9 +9,9 @@ from absl import flags, app
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("model", "GloNet", "Architecture of GloNet, either classic or forward") 
+flags.DEFINE_string("model", "ResNet50", "Architecture of GloNet or ResNet") 
 flags.DEFINE_integer("epochs", 10, "Number of training epochs")
-flags.DEFINE_integer("batch_size", 256, "Batch size for training")
+flags.DEFINE_integer("batch_size", 32, "Batch size for training")
 flags.DEFINE_string("optimizer", "SGD", "Training optimizer")
 flags.DEFINE_float("learning_rate", 0.01, "Learning rate for optimization")
 flags.DEFINE_float("momentum", 0.0, "Momentum regularization")
