@@ -39,10 +39,9 @@ echo "--------------------------------"
 # Experiment 4: Smaller batch size, more epochs
 echo "Running Experiment 4: GloNet 52 layers"
 python train.py \
-    --model="GloNet" \
+    --model="GloNet50" \
     --epochs=200 \
-    --result_dir="training_results/complete_session" \
-    --num_layers=52
+    --result_dir="training_results/complete_session"
 
 echo "Experiment 4 completed."
 echo "--------------------------------"
@@ -50,10 +49,9 @@ echo "--------------------------------"
 # Experiment 5: Smaller batch size, more epochs
 echo "Running Experiment 5: GloNet 102 layers"
 python train.py \
-    --model="GloNet" \
+    --model="GloNet100" \
     --epochs=200 \
-    --result_dir="training_results/complete_session" \
-    --num_layers=102
+    --result_dir="training_results/complete_session"
 
 echo "Experiment 5 completed."
 echo "--------------------------------"
@@ -61,10 +59,9 @@ echo "--------------------------------"
 # Experiment 5: Smaller batch size, more epochs
 echo "Running Experiment 6: GloNet 202 layers"
 python train.py \
-    --model="GloNet" \
+    --model="GloNet200" \
     --epochs=200 \
-    --result_dir="training_results/complete_session" \
-    --num_layers=202
+    --result_dir="training_results/complete_session"
 
 echo "Experiment 6 completed."
 echo "--------------------------------"
