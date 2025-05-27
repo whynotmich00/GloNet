@@ -1,1 +1,0 @@
-This repo is the boiler plate code to train a neural network in jax and flax
