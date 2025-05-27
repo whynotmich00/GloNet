@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from _src.utils import compute_l1_validation_mean_inter_outputs, compute_l1_norms_leaves
+from _src.utils import compute_l1_norms_leaves
 
 
 # plt.rcParams['figure.figsize'] = [20, 20]
@@ -114,18 +114,12 @@ def plot_training_metrics(metrics: Dict, folder_name: str):
             # This is done to show the usage of the network outputs by the model
             ax = interm_outputs_norm_axes
             # the mean of l1 norms of the intermediate outputs of the last epoch on validation set
-            # l1_norms = compute_l1_validation_mean_inter_outputs(
-            #     intermediates_outputs=metric_value[0],
-            #     test_ds_length=metric_value[1]["len_testset"],
-            #     batch_size=metric_value[1]["batch_size"],
-            # )
-            # assert len(l1_norms.shape) == 1, f"L1 norms should be a 1D array, got {l1_norms.shape} instead."
-            flat = jtu.tree_leaves_with_path(metric_value)
-            vals = [v for _, v in flat]
-            keys = [k[0].key  if "resnet" not in k[0].key else k[0].key + k[1].key for k, _ in flat]
-            ax.plot(vals, marker="o", label=metric_key, linestyle="None", alpha=0.8)
-            ax.set_xticks(range(len(keys)))
-            ax.set_xticklabels(keys, rotation=45, ha='right')
+            l1_norms_with_path = jtu.tree_leaves_with_path(metric_value)
+            l1_norms = [v for _, v in l1_norms_with_path]
+            l1_layers = [k[0].key if "resnet" not in k[0].key else k[0].key + k[1].key for k, _ in l1_norms_with_path]
+            ax.plot(l1_norms, marker="o", label=metric_key, linestyle="None", alpha=0.8)
+            ax.set_xticks(range(len(l1_layers)))
+            ax.set_xticklabels(l1_layers, rotation=45, ha='right')
             ax.set_xlabel("Layers")
             ax.set_ylabel("L1 Norm")
             ax.set_title("Mean of L1 Output Norm by Layer for the Validation Set (last epoch)")
@@ -138,8 +132,8 @@ def plot_training_metrics(metrics: Dict, folder_name: str):
             ax.set_ylabel(metric_key)
             ax.set_title(metric_key.replace("_", " ").title())
             ax.set_xlabel("Epochs" if "val" in metric_key else "Steps")
-            ax.set_yscale("log") if "loss" in metric_key else None
-            ax.grid()
+            ax.set_yscale("log") if "loss" in metric_key else "linear"
+            ax.grid(True)
             ax.legend()
         
     fig.tight_layout()

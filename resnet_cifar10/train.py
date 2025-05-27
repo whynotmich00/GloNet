@@ -5,15 +5,19 @@ from _src.train_lib import train_model
 from _src.log_training import log_training
 
 from absl import flags, app
+import jax
+
+# jax.config.update("jax_debug_nans", True)
+# jax.config.update("jax_disable_jit", True)
 
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("model", "ResNet34", "Architecture of GloNet or ResNet")
+flags.DEFINE_string("model", "ResNet20", "Architecture of GloNet or ResNet")
 flags.DEFINE_boolean("use_batch_norm", True, "Whether to use batch normalization in the model")
 flags.DEFINE_integer("epochs", 10, "Number of training epochs")
 flags.DEFINE_float("l2_reg_alpha", 0., "Use L2 regularization ")
-flags.DEFINE_integer("batch_size", 64, "Batch size for training")
+flags.DEFINE_integer("batch_size", 256, "Batch size for training")
 flags.DEFINE_string("optimizer", "ADAM", "Training optimizer")
 flags.DEFINE_float("learning_rate", 0.001, "Learning rate for optimization")
 flags.DEFINE_float("momentum", 0.0, "Momentum regularization")
@@ -33,11 +37,11 @@ def main(argv):
     print(f"Momentum: {FLAGS.momentum}") if FLAGS.optimizer == "SGD" else None
     print(f"Features: {FLAGS.features}")
     print(f"Result directory: {FLAGS.result_dir}")
-     
+    
     # Train the model
     start_time = time()
     state, metrics = train_model(flags=FLAGS)
-    print(f"Training time: {time() - start_time:.4f} seconds")
+    print(f"Training time: {(time() - start_time) / 60:.4f} minutes")
     
     # Save the training and report the metrics
     log_training(flags=FLAGS, state=state, metrics=metrics,)

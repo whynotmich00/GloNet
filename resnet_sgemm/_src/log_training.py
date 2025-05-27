@@ -21,7 +21,8 @@ def save_training_files(flags, state, metrics, folder_name: str):
     # Save the training state as a pickle file
     state_file = os.path.join(folder_name, "train_state_params.pkl")
     with open(state_file, "wb") as f:
-        pickle.dump(state.params, f)
+        params = jtu.tree_map(np.array, state.params)
+        pickle.dump(params, f)
     
     # Save the args dict as a json file
     args_file = os.path.join(folder_name, "config.json")
@@ -113,13 +114,12 @@ def plot_training_metrics(metrics: Dict, folder_name: str):
             # This is done to show the usage of the network outputs by the model
             ax = interm_outputs_norm_axes
             # the mean of l1 norms of the intermediate outputs of the last epoch on validation set
-            l1_norms = compute_l1_validation_mean_inter_outputs(
-                intermediates_outputs=metric_value[0],
-                test_ds_length=metric_value[1]["len_testset"],
-                batch_size=metric_value[1]["batch_size"],
-            )
-            assert len(l1_norms.shape) == 1, f"L1 norms should be a 1D array, got {l1_norms.shape} instead."
+            l1_norms_with_path = jtu.tree_leaves_with_path(metric_value)
+            l1_norms = [v for _, v in l1_norms_with_path]
+            l1_layers = [k[0].key if "resnet" not in k[0].key else k[0].key + k[1].key for k, _ in l1_norms_with_path]
             ax.plot(l1_norms, marker="o", label=metric_key, linestyle="None", alpha=0.8)
+            ax.set_xticks(range(len(l1_layers)))
+            ax.set_xticklabels(l1_layers, rotation=45, ha='right')
             ax.set_xlabel("Layers")
             ax.set_ylabel("L1 Norm")
             ax.set_title("Mean of L1 Output Norm by Layer for the Validation Set (last epoch)")

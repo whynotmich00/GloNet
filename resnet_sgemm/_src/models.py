@@ -169,7 +169,7 @@ class GloNet(nn.Module):
             features=self.output_dim,
             kernel_init=jax.nn.initializers.kaiming_normal(),
             bias_init=jax.nn.initializers.zeros,
-            name=f"Dense_{self.num_layers}"
+            name=f"Dense_{self.num_layers - 1}"
         )(layers_outputs_sum)
         
         return predictions

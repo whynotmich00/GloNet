@@ -1,28 +1,32 @@
 from flax import linen as nn
 from flax.training import train_state
 import optax
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import numpy as np
 
-from _src.models import GloNet, ResNet34, ResNet50, ResNet101, ResNet152, GloNet20, GloNet34, GloNet50, GloNet101, GloNet152
+
+from _src.models import GloNet, GloNet20, ResNet20
 
 
-def create_model(flags) -> nn.Module:
+def create_model(
+    flags,
+    ) -> nn.Module:
     
-    if flags.model == "GloNet": return GloNet(features=flags.features)
+    if flags.model == "GloNet": return GloNet(features=flags.features, num_layers=flags.num_layers, output_dim=1)
     elif flags.model == "GloNet20": return GloNet20(use_batch_norm=flags.use_batch_norm)
-    elif flags.model == "GloNet34": return GloNet34(use_batch_norm=flags.use_batch_norm)
-    elif flags.model == "GloNet50": return GloNet50(use_batch_norm=flags.use_batch_norm)
-    elif flags.model == "GloNet101": return GloNet101(use_batch_norm=flags.use_batch_norm)
-    elif flags.model == "GloNet152": return GloNet152(use_batch_norm=flags.use_batch_norm)
-    # elif flags.model == "ResNet20": return ResNet20(use_batch_norm=flags.use_batch_norm)
-    elif flags.model == "ResNet34": return ResNet34()
-    elif flags.model == "ResNet50": return ResNet50()
-    elif flags.model == "ResNet101": return ResNet101()
-    elif flags.model == "ResNet152": return ResNet152()
+    # elif flags.model == "GloNet24": return GloNet24(features=flags.features)
+    # elif flags.model == "GloNet50": return GloNet50(features=flags.features)
+    # elif flags.model == "GloNet100": return GloNet100(features=flags.features)
+    # elif flags.model == "GloNet200": return GloNet200(features=flags.features)
+    elif flags.model == "ResNet20": return ResNet20(use_batch_norm=flags.use_batch_norm)
+    # elif flags.model == "ResNet24": return ResNet24(features=flags.features)
+    # elif flags.model == "ResNet50": return ResNet50(features=flags.features)
+    # elif flags.model == "ResNet100": return ResNet100(features=flags.features)
+    # elif flags.model == "ResNet200": return ResNet200(features=flags.features)
     else: raise ValueError("Model not implemented.")
+
 
 # Define the training state class to keep track of parameters and optimizer
 class TrainState(train_state.TrainState):
